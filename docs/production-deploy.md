@@ -9,7 +9,7 @@
 
 - Node.js 20 以上
 - MySQL 8.0 以上、または互換DB
-- GitHub リポジトリ: `https://github.com/KIMEGAMI/SubscList`
+- GitHub リポジトリ: `https://github.com/KIMEGAMI/subsclist`
 - Google SMTP 用の Gmail アプリパスワード
 - OpenAI API key
 - Stripe 本番キー、Webhook secret、Premium プランの Price ID
@@ -62,7 +62,7 @@ npm run build
 
 ## 4. Vercel にデプロイする場合
 
-1. Vercel で GitHub リポジトリ `KIMEGAMI/SubscList` を Import します。
+1. Vercel で GitHub リポジトリ `KIMEGAMI/subsclist` を Import します。
 2. Framework Preset は Next.js を選択します。
 3. Environment Variables に「2. 本番用の環境変数」を登録します。
 4. Build Command は通常どおり `npm run build` を使用します。
@@ -82,7 +82,7 @@ npm run prisma:deploy && npm run build
 サーバー上で以下を実行します。
 
 ```bash
-git clone https://github.com/KIMEGAMI/SubscList.git
+git clone https://github.com/KIMEGAMI/subsclist.git
 cd SubscList
 npm install
 npm run prisma:generate
