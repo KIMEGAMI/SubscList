@@ -10,7 +10,8 @@
     "prisma:generate": "node scripts/prisma-generate.cjs",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "seed:demo": "node scripts/seed-demo-production.cjs"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.8.0",
