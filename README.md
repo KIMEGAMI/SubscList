@@ -97,6 +97,8 @@ npm run build
 
 Vercel などの Next.js 対応環境にデプロイできます。MySQL、Stripe、メール配信の本番環境変数を設定してください。
 
+本番環境への具体的なデプロイ手順は [docs/production-deploy.md](docs/production-deploy.md) を参照してください。
+
 ## 今後の改善予定
 
 - NextAuth.js の永続セッション連携
