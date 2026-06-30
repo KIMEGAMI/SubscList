@@ -1,0 +1,51 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+const schema = z.object({
+  subscriptionId: z.string().min(1),
+  title: z.string().trim().min(1).max(100),
+  kind: z.enum(["REQUEST", "RECEIPT", "EMAIL", "SCREENSHOT", "MEMO"]),
+  referenceUrl: z.string().optional(),
+  memo: z.string().max(1000).optional(),
+  recordedAt: z.string().optional(),
+});
+
+function optionalUrl(value?: string) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ message: "ログインしてください。" }, { status: 401 });
+  if (!user.emailVerified) return NextResponse.json({ message: "メール認証が必要です。" }, { status: 403 });
+
+  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) return NextResponse.json({ message: "入力内容を確認してください。" }, { status: 400 });
+
+  const subscription = await prisma.subscription.findFirst({
+    where: { id: parsed.data.subscriptionId, userId: user.id, deletedAt: null },
+  });
+  if (!subscription) return NextResponse.json({ message: "対象が見つかりません。" }, { status: 404 });
+
+  await prisma.cancellationEvidence.create({
+    data: {
+      userId: user.id,
+      subscriptionId: subscription.id,
+      title: parsed.data.title,
+      kind: parsed.data.kind,
+      referenceUrl: optionalUrl(parsed.data.referenceUrl),
+      memo: parsed.data.memo || null,
+      recordedAt: parsed.data.recordedAt ? new Date(parsed.data.recordedAt) : new Date(),
+    },
+  });
+
+  return NextResponse.json({ ok: true });
+}

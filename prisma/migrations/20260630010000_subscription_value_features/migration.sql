@@ -1,0 +1,27 @@
+ALTER TABLE `Subscription`
+  ADD COLUMN `usageFrequency` ENUM('DAILY', 'WEEKLY', 'MONTHLY', 'RARELY', 'UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN `priority` ENUM('ESSENTIAL', 'USEFUL', 'OPTIONAL', 'UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN `alternativeName` VARCHAR(191) NULL,
+  ADD COLUMN `alternativeMonthlyPrice` INTEGER NULL,
+  ADD COLUMN `logoUrl` VARCHAR(191) NULL,
+  ADD COLUMN `cancellationStatus` ENUM('NONE', 'CONSIDERING', 'PLANNED', 'REQUESTED', 'COMPLETED') NOT NULL DEFAULT 'NONE',
+  ADD COLUMN `plannedCancelAt` DATETIME(3) NULL,
+  ADD COLUMN `cancellationMemo` TEXT NULL,
+  ADD COLUMN `cancellationCompletedAt` DATETIME(3) NULL;
+
+CREATE TABLE `UserPreference` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `monthlyBudget` INTEGER NULL,
+  `defaultNotifyDaysBefore` INTEGER NOT NULL DEFAULT 7,
+  `notificationHour` INTEGER NOT NULL DEFAULT 9,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+
+  UNIQUE INDEX `UserPreference_userId_key`(`userId`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE `UserPreference`
+  ADD CONSTRAINT `UserPreference_userId_fkey`
+  FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
