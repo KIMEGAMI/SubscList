@@ -57,7 +57,7 @@ npm run lint
 npm run build
 ```
 
-`npm run build` は内部で `prisma generate` を実行してから Next.js をビルドします。この段階で失敗する場合は、本番デプロイ前に修正してください。
+`npm run build` generates Prisma Client before the Next.js build. During generation only, it uses a fallback URL when `DATABASE_URL` is not set. `npm run prisma:deploy` still requires the production `DATABASE_URL`.
 
 ## 4. Vercel にデプロイする場合
 
