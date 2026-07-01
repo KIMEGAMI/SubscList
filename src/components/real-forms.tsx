@@ -444,10 +444,10 @@ export function PlanSettingsForm({ plan, stripeTestMode }: { plan: "FREE" | "PRE
     try {
       const response = await fetch(path, { method: "POST" });
       const data = (await response.json().catch(() => ({}))) as { message?: string; url?: string };
-      if (!response.ok || !data.url) throw new Error(data.message ?? "Could not open the Stripe page.");
+      if (!response.ok || !data.url) throw new Error(data.message ?? "Stripeページを開けませんでした。");
       window.location.href = data.url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not open the Stripe page.");
+      setError(err instanceof Error ? err.message : "Stripeページを開けませんでした。");
       setLoading("");
     }
   }
@@ -458,10 +458,10 @@ export function PlanSettingsForm({ plan, stripeTestMode }: { plan: "FREE" | "PRE
     setLoading("downgrade");
     try {
       await request("/api/settings/plan", "PUT", { plan: "FREE" });
-      setMessage("Changed the app display to Free. If Stripe billing is active, cancel it from the Stripe portal as well.");
+      setMessage("アプリ表示をFreeに変更しました。Stripeで課金中の場合は、Stripeポータルから解約も行ってください。");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Plan update failed.");
+      setError(err instanceof Error ? err.message : "プラン変更に失敗しました。");
     } finally {
       setLoading("");
     }
@@ -473,24 +473,24 @@ export function PlanSettingsForm({ plan, stripeTestMode }: { plan: "FREE" | "PRE
         <div className="rounded-lg border border-slate-100 bg-white/70 p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <p className="font-bold">Free</p>
-            {plan === "FREE" && <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">Current</span>}
+            {plan === "FREE" && <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">現在のプラン</span>}
           </div>
-          <p className="mt-2 text-sm text-slate-600">Manage up to 10 subscriptions and 5 categories. Basic dashboard, calendar, and notification checks are included.</p>
+          <p className="mt-2 text-sm text-slate-600">サブスク10件、カテゴリ5件まで管理できます。基本ダッシュボード、カレンダー、通知チェックを利用できます。</p>
         </div>
         <div className="rounded-lg border border-blue-100 bg-blue-50/80 p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <p className="font-bold text-blue-900">Premium JPY 480/mo</p>
-            {plan === "PREMIUM" && <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-black text-white">Current</span>}
+            <p className="font-bold text-blue-900">Premium 月額480円</p>
+            {plan === "PREMIUM" && <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-black text-white">現在のプラン</span>}
           </div>
-          <p className="mt-2 text-sm text-blue-800">Unlimited subscriptions, CSV import/export, statement detection, advanced analytics, monthly report, AI recommendations, and cancellation support.</p>
+          <p className="mt-2 text-sm text-blue-800">サブスク無制限、CSVインポート/エクスポート、明細検出、高度な分析、月次レポート、AI提案、解約支援を利用できます。</p>
         </div>
       </div>
       {stripeTestMode && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-          <p className="font-black">Stripe test mode is active</p>
-          <p>Use card number <span className="font-mono font-bold">4242 4242 4242 4242</span> in Stripe Checkout.</p>
-          <p>Expiry can be any future date. CVC can be any 3 digits. Name, address, and ZIP can be any test value.</p>
-          <p>No real charge is created while Stripe test keys are used.</p>
+          <p className="font-black">Stripeテストモードが有効です</p>
+          <p>Stripe Checkoutではカード番号 <span className="font-mono font-bold">4242 4242 4242 4242</span> を使用してください。</p>
+          <p>有効期限は未来日、CVCは任意の3桁、氏名・住所・郵便番号は任意のテスト値で入力できます。</p>
+          <p>Stripeのテストキーを使用している間、実際の請求は発生しません。</p>
         </div>
       )}
       {message && <p className="rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{message}</p>}
@@ -498,20 +498,20 @@ export function PlanSettingsForm({ plan, stripeTestMode }: { plan: "FREE" | "PRE
       <div className="flex flex-col gap-3 sm:flex-row">
         {plan === "FREE" ? (
           <button type="button" disabled={Boolean(loading)} onClick={() => openStripe("/api/stripe/checkout", "checkout")} className="btn-primary">
-            {loading === "checkout" ? "Opening Stripe..." : "Upgrade to Premium"}
+            {loading === "checkout" ? "Stripeを開いています..." : "Premiumにアップグレード"}
           </button>
         ) : (
           <button type="button" disabled={Boolean(loading)} onClick={() => openStripe("/api/stripe/portal", "portal")} className="btn-primary">
-            {loading === "portal" ? "Opening Stripe..." : "Manage billing"}
+            {loading === "portal" ? "Stripeを開いています..." : "課金を管理"}
           </button>
         )}
         {plan === "PREMIUM" && (
           <button type="button" disabled={Boolean(loading)} onClick={downgrade} className="btn-secondary">
-            {loading === "downgrade" ? "Updating..." : "Switch app display to Free"}
+            {loading === "downgrade" ? "更新中..." : "アプリ表示をFreeに変更"}
           </button>
         )}
       </div>
-      <p className="text-xs leading-5 text-slate-500">Production billing is managed by Stripe. When the webhook is configured, payment success, cancellation, and subscription status changes update Premium automatically.</p>
+      <p className="text-xs leading-5 text-slate-500">本番課金はStripeで管理されます。Webhookを設定すると、決済成功、解約、サブスクリプション状態の変更が自動でPremiumへ反映されます。</p>
     </div>
   );
 }
