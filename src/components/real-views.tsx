@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { FREE_SUBSCRIPTION_LIMIT, hiddenByPlan, isPremiumPlan, limitByPlan } from "@/lib/plans";
 import { estimatedMonthlySaving, reviewScore } from "@/lib/subscription-insights";
+import { syncStripeCheckoutSessionById } from "@/lib/stripe-billing";
 
 const yen = new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 });
 
@@ -1476,12 +1477,48 @@ export async function NotificationsView() {
   );
 }
 
-export async function SettingsView() {
-  const user = await requireVerifiedUser();
+export async function SettingsView({ checkoutStatus, checkoutSessionId }: { checkoutStatus?: string; checkoutSessionId?: string } = {}) {
+  const currentUser = await requireVerifiedUser();
+  let checkoutNotice: { type: "success" | "error"; message: string } | null = null;
+
+  if (checkoutStatus === "success") {
+    if (!checkoutSessionId) {
+      checkoutNotice = { type: "error", message: "決済完了情報を確認できませんでした。もう一度設定画面を更新してください。" };
+    } else {
+      try {
+        const syncStatus = await syncStripeCheckoutSessionById(checkoutSessionId, currentUser.id);
+        if (syncStatus === "synced") {
+          checkoutNotice = { type: "success", message: "決済が完了しました。Premiumプランに更新しました。" };
+        } else if (syncStatus === "not_complete") {
+          checkoutNotice = { type: "error", message: "Stripe決済がまだ完了していません。しばらく待ってから再読み込みしてください。" };
+        } else if (syncStatus === "invalid_user") {
+          checkoutNotice = { type: "error", message: "決済情報とログイン中のユーザーが一致しません。" };
+        } else {
+          checkoutNotice = { type: "error", message: "Stripeのサブスクリプション情報を確認できませんでした。" };
+        }
+      } catch (error) {
+        console.error("Stripe checkout session sync failed.", error);
+        checkoutNotice = { type: "error", message: "Stripe決済の確認に失敗しました。Webhook設定またはStripe設定を確認してください。" };
+      }
+    }
+  } else if (checkoutStatus === "cancelled") {
+    checkoutNotice = { type: "error", message: "Stripe決済はキャンセルされました。" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: currentUser.id },
+    select: { id: true, name: true, email: true, emailVerified: true, plan: true, createdAt: true },
+  });
+  if (!user) return null;
   const preference = await prisma.userPreference.findUnique({ where: { userId: user.id } });
   return (
     <AppShell>
       <PageHeader title="設定" description="プロフィール、プラン、パスワード、予算、通知の標準値を変更できます。" action={<LogoutButton />} />
+      {checkoutNotice && (
+        <div className={checkoutNotice.type === "success" ? "mb-5 rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-700" : "mb-5 rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700"}>
+          {checkoutNotice.message}
+        </div>
+      )}
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
           <h2 className="text-lg font-bold">プロフィール</h2>

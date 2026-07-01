@@ -41,7 +41,7 @@ export async function POST() {
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: env.stripePremiumPriceId, quantity: 1 }],
-      success_url: `${env.appUrl}/settings?checkout=success`,
+      success_url: `${env.appUrl}/settings?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${env.appUrl}/settings?checkout=cancelled`,
       allow_promotion_codes: true,
       metadata: { userId: dbUser.id },
