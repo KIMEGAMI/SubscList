@@ -496,7 +496,7 @@ export function PlanSettingsForm({ plan, stripeTestMode }: { plan: "FREE" | "PRE
         </div>
         <div className="rounded-lg border border-blue-100 bg-blue-50/80 p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <p className="font-bold text-blue-900">Premium 月額480円</p>
+            <p className="font-bold text-blue-900">Premium</p>
             {plan === "PREMIUM" && <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-black text-white">現在のプラン</span>}
           </div>
           <p className="mt-2 text-sm text-blue-800">サブスク無制限、CSV入出力、明細検出、高度な分析、月次レポート、AI提案、解約支援を利用できます。</p>

@@ -142,7 +142,7 @@ function PremiumValueCard({ monthlyTotal, saving, reviewCount, urgentCount }: { 
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <div>
           <p className="text-xs font-black uppercase text-blue-700">Premium Value</p>
-          <h2 className="mt-2 text-xl font-black text-blue-950">480円の元が取れているかを毎月チェック</h2>
+          <h2 className="mt-2 text-xl font-black text-blue-950">固定費の見直し余地を毎月チェック</h2>
           <p className="mt-2 text-sm font-semibold leading-6 text-blue-900">登録済みサブスクから、見直し候補・期限リスク・削減見込みを自動で整理します。</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -155,6 +155,75 @@ function PremiumValueCard({ monthlyTotal, saving, reviewCount, urgentCount }: { 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <Link href="/review" className="btn-primary">見直しレポートを見る</Link>
         <Link href="/monthly-report" className="btn-secondary">月次レポートを見る</Link>
+      </div>
+    </Card>
+  );
+}
+
+function OperationalCommandCard({
+  score,
+  dataQuality,
+  urgentCount,
+  reviewCount,
+  lowUsageCount,
+  budgetRate,
+  budgetExceeded,
+}: {
+  score: number;
+  dataQuality: number;
+  urgentCount: number;
+  reviewCount: number;
+  lowUsageCount: number;
+  budgetRate: number;
+  budgetExceeded: boolean;
+}) {
+  const scoreTone = score >= 80 ? "text-emerald-700" : score >= 60 ? "text-amber-700" : "text-rose-700";
+  const actions = [
+    budgetExceeded ? "月額予算を超過しています。削減候補から優先して見直してください。" : null,
+    urgentCount > 0 ? `7日以内に対応が必要な契約が${urgentCount}件あります。` : null,
+    reviewCount > 0 ? `見直し未実施または要確認の契約が${reviewCount}件あります。` : null,
+    lowUsageCount > 0 ? `利用頻度が低い契約が${lowUsageCount}件あります。` : null,
+    dataQuality < 80 ? "カテゴリ、支払い方法、利用頻度、最終見直し日を埋めると分析精度が上がります。" : null,
+  ].filter(Boolean) as string[];
+
+  return (
+    <Card className="mt-6 border-slate-200 bg-white/92">
+      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+        <div>
+          <p className="text-sm font-black text-slate-500">運用スコア</p>
+          <div className="mt-3 flex items-end gap-3">
+            <p className={`text-6xl font-black ${scoreTone}`}>{score}</p>
+            <p className="pb-2 text-sm font-bold text-slate-500">/ 100</p>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            更新期限、見直し状況、予算、登録データの充実度から算出しています。
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <MiniMetric label="優先アクション" value={`${actions.length}件`} />
+            <MiniMetric label="データ充実度" value={`${dataQuality}%`} />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">今月の優先アクション</h2>
+            <Link href="/review" className="text-sm font-semibold text-blue-700">見直しレポート</Link>
+          </div>
+          <div className="mt-4 space-y-3">
+            {actions.length === 0 ? (
+              <EmptyState text="今すぐ対応が必要な項目はありません。次回更新予定を確認しながら運用できます。" />
+            ) : (
+              actions.slice(0, 5).map((action) => (
+                <div key={action} className="rounded-lg border border-slate-100 bg-slate-50/80 p-4 text-sm font-semibold leading-6 text-slate-700">
+                  {action}
+                </div>
+              ))
+            )}
+          </div>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+            <div className={`h-full rounded-full ${budgetExceeded ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, budgetRate)}%` }} />
+          </div>
+          <p className="mt-2 text-xs font-semibold text-slate-500">予算消化率 {budgetRate}%</p>
+        </div>
       </div>
     </Card>
   );
@@ -255,6 +324,21 @@ export async function DashboardView() {
   const urgentItems = active.filter((item) => daysUntil(item.nextBillingDate) <= 7 || (item.trialEndsAt && daysUntil(item.trialEndsAt) <= 7) || (item.cancellationDeadline && daysUntil(item.cancellationDeadline) <= 7));
   const reviewItems = active.filter((item) => needsReview(item.lastReviewedAt));
   const saving = active.reduce((sum, item) => sum + estimatedMonthlySaving(item), 0);
+  const categoryCounts = active.reduce<Record<string, number>>((acc, item) => {
+    const key = item.categoryId ?? "none";
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  const scoredItems = active.map((item) => reviewScore(item, categoryCounts[item.categoryId ?? "none"] ?? 1));
+  const reviewPriorityCount = scoredItems.filter((item) => item.score >= 40).length;
+  const lowUsageCount = active.filter((item) => item.usageFrequency === "RARELY" || item.priority === "OPTIONAL").length;
+  const filledFields = active.reduce((sum, item) => {
+    return sum + Number(Boolean(item.categoryId)) + Number(Boolean(item.paymentMethodId)) + Number(item.usageFrequency !== "UNKNOWN") + Number(Boolean(item.lastReviewedAt));
+  }, 0);
+  const dataQuality = active.length ? Math.round((filledFields / (active.length * 4)) * 100) : 100;
+  const budgetExceeded = Boolean(budget && monthlyTotal > budget);
+  const budgetPenalty = budgetExceeded ? Math.min(20, Math.round(((monthlyTotal - (budget ?? 0)) / monthlyTotal) * 30)) : 0;
+  const operationScore = Math.max(0, 100 - Math.min(30, urgentItems.length * 10) - Math.min(25, reviewPriorityCount * 5) - Math.min(15, lowUsageCount * 5) - Math.max(0, 80 - dataQuality) - budgetPenalty);
   const categoryTotals = active.reduce<Record<string, number>>((acc, item) => {
     const name = item.category?.name ?? "未分類";
     acc[name] = (acc[name] ?? 0) + monthly(item.price, item.billingCycle, item.customCycleDays);
@@ -280,6 +364,7 @@ export async function DashboardView() {
         ))}
       </div>
       <PremiumValueCard monthlyTotal={monthlyTotal} saving={saving} reviewCount={reviewItems.length} urgentCount={urgentItems.length} />
+      <OperationalCommandCard score={operationScore} dataQuality={dataQuality} urgentCount={urgentItems.length} reviewCount={reviewPriorityCount} lowUsageCount={lowUsageCount} budgetRate={budget ? budgetRate : 0} budgetExceeded={budgetExceeded} />
       {budget && (
         <Card className="mt-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1311,7 +1396,7 @@ export async function ReviewView() {
 
   return (
     <AppShell>
-      <PageHeader title="見直しレポート" description="480円以上の価値を出すために、削減見込み、見直しスコア、期限リスクをまとめて判断します。" />
+      <PageHeader title="見直しレポート" description="削減見込み、見直しスコア、期限リスクをまとめて判断します。" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card><p className="text-sm font-semibold text-slate-500">削減見込み</p><p className="mt-2 text-3xl font-black">{yen.format(totalSaving)}</p><p className="mt-2 text-sm text-slate-500">年間 {yen.format(totalSaving * 12)}</p></Card>
         <Card><p className="text-sm font-semibold text-slate-500">要対応スコア</p><p className="mt-2 text-3xl font-black">{urgentCount}件</p><p className="mt-2 text-sm text-slate-500">70点以上</p></Card>

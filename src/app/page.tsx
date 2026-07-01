@@ -7,6 +7,7 @@ const features = [
   ["削減見込みを表示", "利用頻度、重要度、AI診断をもとに、月額・年額でどれだけ削減できるかを確認できます。"],
   ["解約まで支援", "検討中、解約予定、申請済み、完了までを記録し、解約URLやメモを一緒に管理できます。"],
   ["CSVから取り込める", "カード明細や既存の管理表から取り込み、手入力の負担を減らします。"],
+  ["運用スコアで判断", "期限リスク、予算、見直し状況、データ充実度をまとめて、今月の優先対応を表示します。"],
 ];
 
 export default function Home() {
@@ -32,7 +33,7 @@ export default function Home() {
               </Link>
               <DemoLoginButton />
               <Link href="/pricing" className="rounded-full border border-slate-200 bg-white/85 px-7 py-4 text-center font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:text-blue-700">
-                料金を見る
+                プランを見る
               </Link>
             </div>
           </div>
@@ -60,7 +61,7 @@ export default function Home() {
               契約先、料金、更新日、支払い方法が分散すると、使っていないサービスにも気づきにくくなります。サブスクリストは、更新予定と支出構造を同じ画面で確認できる管理体験を提供します。
             </p>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-4">
             {features.map(([title, body]) => (
               <Card key={title}>
                 <h3 className="text-lg font-bold">{title}</h3>
@@ -92,12 +93,12 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl gap-5 md:grid-cols-2">
           <Card className="border-white/10 bg-white/5 text-white">
             <h3 className="text-2xl font-bold">Free</h3>
-            <p className="mt-2 text-4xl font-black">0円</p>
+            <p className="mt-2 text-4xl font-black">お試し</p>
             <p className="mt-3 text-sm text-slate-300">10件まで登録、基本通知、基本集計。</p>
           </Card>
           <Card className="border-fuchsia-300/40 bg-white text-slate-950">
             <h3 className="text-2xl font-bold">Premium</h3>
-            <p className="mt-2 text-4xl font-black">480円/月</p>
+            <p className="mt-2 text-4xl font-black">本格運用</p>
             <p className="mt-3 text-sm text-slate-600">登録無制限、CSV入出力、CSV明細候補検出、高度分析、支払い累計、見直しレポート、AI診断、解約支援。</p>
           </Card>
         </div>
