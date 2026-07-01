@@ -1,30 +1,53 @@
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { requireVerifiedUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 
+class StripeConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StripeConfigError";
+  }
+}
+
+const messages = {
+  userNotFound: "\u30e6\u30fc\u30b6\u30fc\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3002",
+  invalidKey: "Stripe\u306e\u30b7\u30fc\u30af\u30ec\u30c3\u30c8\u30ad\u30fc\u304c\u6b63\u3057\u304f\u3042\u308a\u307e\u305b\u3093\u3002STRIPE_SECRET_KEY\u306bStripe\u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9\u306e\u30c6\u30b9\u30c8\u7528\u30b7\u30fc\u30af\u30ec\u30c3\u30c8\u30ad\u30fc\uff08sk_test_...\uff09\u3092\u8a2d\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+  missingPrice: "Stripe\u306e\u4fa1\u683cID\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3002STRIPE_PREMIUM_PRICE_ID\u304c\u3001\u73fe\u5728\u306eStripe\u30ad\u30fc\u3068\u540c\u3058\u30c6\u30b9\u30c8/\u672c\u756a\u30e2\u30fc\u30c9\u306eprice_...\u306b\u306a\u3063\u3066\u3044\u308b\u304b\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+  inactivePrice: "Stripe\u306ePrice\u304c\u7121\u52b9\u3067\u3059\u3002Stripe\u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9\u3067\u4fa1\u683c\u304c\u6709\u52b9\u306b\u306a\u3063\u3066\u3044\u308b\u304b\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+  oneTimePrice: "Stripe\u306ePrice\u304c\u4e00\u56de\u9650\u308a\u306e\u4fa1\u683c\u3067\u3059\u3002\u6708\u984d\u306e\u7d99\u7d9a\u8ab2\u91d1\uff08Recurring / Monthly\uff09\u306eprice_...\u3092\u8a2d\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+  notMonthly: "Stripe\u306ePrice\u306f\u7d99\u7d9a\u8ab2\u91d1\u3067\u3059\u304c\u3001\u6708\u984d\u3067\u306f\u3042\u308a\u307e\u305b\u3093\u3002\u8acb\u6c42\u671f\u9593\u304cMonthly\u306eprice_...\u3092\u8a2d\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+  invalidRequest: "Stripe Checkout\u306e\u4f5c\u6210\u6761\u4ef6\u304c\u6b63\u3057\u304f\u3042\u308a\u307e\u305b\u3093\u3002Price\u304c\u6708\u984d\u30b5\u30d6\u30b9\u30af\u30ea\u30d7\u30b7\u30e7\u30f3\u3068\u3057\u3066\u6709\u52b9\u306b\u306a\u3063\u3066\u3044\u308b\u304b\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+  failed: "Stripe Checkout\u306e\u4f5c\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002Stripe\u8a2d\u5b9a\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+};
+
 function checkoutErrorMessage(error: unknown) {
+  if (error instanceof StripeConfigError) return error.message;
   const stripeError = error as { type?: string; code?: string };
-  if (stripeError.type === "StripeAuthenticationError") {
-    return "Stripeのシークレットキーが正しくありません。STRIPE_SECRET_KEYにStripeダッシュボードのテスト用シークレットキー（sk_test_...）を設定してください。";
-  }
-  if (stripeError.code === "resource_missing") {
-    return "Stripeの価格IDが見つかりません。STRIPE_PREMIUM_PRICE_IDが、現在のStripeキーと同じテスト/本番モードのprice_...になっているか確認してください。";
-  }
-  if (stripeError.type === "StripeInvalidRequestError") {
-    return "Stripe Checkoutの作成条件が正しくありません。Priceが月額サブスクリプションとして有効になっているか確認してください。";
-  }
-  return "Stripe Checkoutの作成に失敗しました。Stripe設定を確認してください。";
+  if (stripeError.type === "StripeAuthenticationError") return messages.invalidKey;
+  if (stripeError.code === "resource_missing") return messages.missingPrice;
+  if (stripeError.type === "StripeInvalidRequestError") return messages.invalidRequest;
+  return messages.failed;
+}
+
+async function assertPremiumPrice(client: Stripe) {
+  const price = await client.prices.retrieve(env.stripePremiumPriceId);
+  if (!price.active) throw new StripeConfigError(messages.inactivePrice);
+  if (!price.recurring) throw new StripeConfigError(messages.oneTimePrice);
+  if (price.recurring.interval !== "month") throw new StripeConfigError(messages.notMonthly);
+  return price;
 }
 
 export async function POST() {
   const user = await requireVerifiedUser();
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return NextResponse.json({ message: "ユーザーが見つかりません。" }, { status: 404 });
+  if (!dbUser) return NextResponse.json({ message: messages.userNotFound }, { status: 404 });
 
   try {
     const client = stripe();
+    await assertPremiumPrice(client);
     let customerId = dbUser.stripeCustomerId;
 
     if (!customerId) {
